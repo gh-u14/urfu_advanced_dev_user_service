@@ -1,0 +1,11 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: user-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/users_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
