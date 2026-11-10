@@ -13,3 +13,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+
+jwt:
+  secret: user-service-dev-secret-key-must-be-long-enough-256bits
+  expiration-ms: 86400000
