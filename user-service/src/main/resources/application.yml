@@ -1,13 +1,13 @@
 server:
-  port: 9000
+  port: ${SERVER_PORT:9000}
 
 spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/users_db
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/users_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
@@ -15,5 +15,5 @@ spring:
       schema-locations: classpath:schema.sql
 
 jwt:
-  secret: user-service-dev-secret-key-must-be-long-enough-256bits
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:user-service-dev-secret-key-must-be-long-enough-256bits}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
