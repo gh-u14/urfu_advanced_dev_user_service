@@ -1,7 +1,6 @@
 package com.userservice.dao;
 
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -106,14 +105,13 @@ public class JdbcUsersRepository implements UsersRepository {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
 
-        // Postgres SERIAL often needs column name; RETURN_GENERATED_KEYS is unreliable here
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     """
                     INSERT INTO users (firstname, lastname, email, phone_number, password_hash, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    Statement.RETURN_GENERATED_KEYS);
+                    new String[] {"id"});
             ps.setString(1, user.getFirstname());
             ps.setString(2, user.getLastname());
             ps.setString(3, user.getEmail());
@@ -125,6 +123,12 @@ public class JdbcUsersRepository implements UsersRepository {
         }, keyHolder);
 
         Number key = keyHolder.getKey();
+        if (key == null && keyHolder.getKeys() != null) {
+            Object id = keyHolder.getKeys().get("id");
+            if (id instanceof Number number) {
+                key = number;
+            }
+        }
         if (key == null) {
             throw new IllegalStateException("Failed to obtain generated user id");
         }
