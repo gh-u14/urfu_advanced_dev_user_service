@@ -80,7 +80,7 @@ public class AuthService {
             throw new UnauthorizedException("invalid_login", "Неверный email или пароль");
         }
 
-        String token = jwtProvider.generate(user.getId());
+        String token = jwtProvider.generate(user.getId(), user.getRoles());
         return new LoginResponse(token);
     }
 

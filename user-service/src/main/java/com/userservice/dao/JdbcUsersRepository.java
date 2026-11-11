@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,19 @@ public class JdbcUsersRepository implements UsersRepository {
     }
 
     @Override
+    public List<User> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+        String sql = "SELECT " + USER_COLUMNS + " FROM users WHERE deleted_at IS NULL AND id IN ("
+                + placeholders + ") ORDER BY id";
+
+        return jdbc.query(sql, userMapper, ids.toArray());
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE email = ? AND deleted_at IS NULL",
@@ -68,10 +82,31 @@ public class JdbcUsersRepository implements UsersRepository {
     }
 
     @Override
+    public boolean existsByEmailExcludingId(String email, Long excludeId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE email = ? AND id <> ? AND deleted_at IS NULL",
+                Integer.class,
+                email,
+                excludeId);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean existsByPhoneNumberExcludingId(String phoneNumber, Long excludeId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE phone_number = ? AND id <> ? AND deleted_at IS NULL",
+                Integer.class,
+                phoneNumber,
+                excludeId);
+        return count != null && count > 0;
+    }
+
+    @Override
     public User save(User user) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         LocalDateTime now = LocalDateTime.now();
 
+        // Postgres SERIAL often needs column name; RETURN_GENERATED_KEYS is unreliable here
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     """
@@ -101,11 +136,65 @@ public class JdbcUsersRepository implements UsersRepository {
     }
 
     @Override
+    public User update(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        jdbc.update(
+                """
+                UPDATE users
+                SET firstname = ?, lastname = ?, email = ?, phone_number = ?, updated_at = ?
+                WHERE id = ? AND deleted_at IS NULL
+                """,
+                user.getFirstname(),
+                user.getLastname(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                Timestamp.valueOf(now),
+                user.getId());
+        user.setUpdatedAt(now);
+        return user;
+    }
+
+    @Override
+    public void softDelete(Long id) {
+        jdbc.update(
+                """
+                UPDATE users
+                SET deleted_at = ?, updated_at = ?
+                WHERE id = ? AND deleted_at IS NULL
+                """,
+                Timestamp.valueOf(LocalDateTime.now()),
+                Timestamp.valueOf(LocalDateTime.now()),
+                id);
+    }
+
+    @Override
     public void saveUserRole(Long userId, Long roleId) {
         jdbc.update(
-                "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+                """
+                INSERT INTO user_roles (user_id, role_id)
+                VALUES (?, ?)
+                ON CONFLICT DO NOTHING
+                """,
                 userId,
                 roleId);
+    }
+
+    @Override
+    public void deleteUserRole(Long userId, Long roleId) {
+        jdbc.update(
+                "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?",
+                userId,
+                roleId);
+    }
+
+    @Override
+    public boolean hasUserRole(Long userId, Long roleId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM user_roles WHERE user_id = ? AND role_id = ?",
+                Integer.class,
+                userId,
+                roleId);
+        return count != null && count > 0;
     }
 
     @Override

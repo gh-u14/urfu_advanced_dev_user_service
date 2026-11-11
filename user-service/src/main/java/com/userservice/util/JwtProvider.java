@@ -2,6 +2,7 @@ package com.userservice.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 
@@ -26,12 +27,13 @@ public class JwtProvider {
         this.expirationMs = expirationMs;
     }
 
-    public String generate(Long userId) {
+    public String generate(Long userId, List<String> roles) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("roles", roles)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey)
@@ -49,6 +51,15 @@ public class JwtProvider {
 
     public Long getUserId(String token) {
         return Long.valueOf(parseClaims(token).getSubject());
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> getRoles(String token) {
+        Object roles = parseClaims(token).get("roles");
+        if (roles instanceof List<?> list) {
+            return list.stream().map(String::valueOf).toList();
+        }
+        return List.of();
     }
 
     private Claims parseClaims(String token) {
